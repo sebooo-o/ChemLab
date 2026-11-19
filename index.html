@@ -2,8 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ChemLab — JSON-driven Structure Trainer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0f1c" />
+<meta name="description" content="ChemLab: learn any chemical structure from a JSON dataset. Works offline on mobile." />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" /><meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="ChemLab" />
+<title>ChemLab — Molecular Structure Trainer</title>
 <style>
 :root{--bg:#070b14;--panel:#0f1626;--card:#151f33;--input:#0a101d;--bs:rgba(148,163,184,.16);--bst:rgba(148,163,184,.34);--tx:#f1f5f9;--mu:#94a3b8;--dim:#64748b;--blue:#38bdf8;--em:#10b981;--am:#f59e0b;--ro:#f43f5e;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -55,11 +62,19 @@ body{font-family:Inter,-apple-system,Segoe UI,Roboto,sans-serif;background:var(-
 #drop{position:fixed;inset:0;z-index:99;background:rgba(7,11,20,.88);display:grid;place-items:center;font-size:22px;font-weight:800;color:var(--blue);border:3px dashed var(--blue)}
 #err{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:90;max-width:90vw}
 code{font-family:var(--mono);background:rgba(255,255,255,.08);padding:0 4px;border-radius:4px}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);overscroll-behavior-y:contain;-webkit-tap-highlight-color:transparent}
+.btn,.tab{touch-action:manipulation}#cv{-webkit-touch-callout:none}
+.dock{display:flex;flex-direction:column;gap:8px}.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.scroll{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}.scroll>*{flex:0 0 auto}.tip{font-size:11.5px;color:var(--dim)}
+dialog{background:var(--panel);color:var(--tx);border:1px solid var(--bst);border-radius:14px;padding:16px;width:min(560px,92vw)}dialog::backdrop{background:rgba(0,0,0,.65)}
+dialog textarea{width:100%;height:46vh;font:12px var(--mono);background:var(--input);color:#fff;border:1px solid var(--bs);border-radius:8px;padding:8px}
+@media(pointer:coarse){.hud{display:none}.btn,.tab{min-height:40px;padding:8px 13px;font-size:13px}.inp{font-size:16px}}
+@media(max-width:700px){.topbar{padding:8px 10px}.tabs{width:100%;overflow-x:auto;flex-wrap:nowrap}.tab{flex:1 0 auto}.ctl{width:100%;flex-wrap:nowrap;overflow-x:auto}.ctl>*{flex:0 0 auto}.grid,.full{padding:10px}.shell{height:min(60vh,520px);min-height:300px}.qopts{grid-template-columns:1fr}.qcv{height:230px}.target{padding:10px}#t-name{font-size:18px!important}.atlas{grid-template-columns:1fr}.panel{padding:10px}}
 </style>
 </head>
 <body>
 <header class="topbar">
-  <div class="brand"><div class="logo">⬡</div><div><div id="ds-title">ChemLab</div><div style="font-size:10.5px;color:var(--mu);font-weight:600">JSON-driven molecular structure trainer</div></div></div>
+  <div class="brand"><div class="logo">⬡</div><div><div>ChemLab</div><div id="ds-title" style="font-size:10.5px;color:var(--mu);font-weight:600">Molecular structure trainer</div></div></div>
   <nav class="tabs">
     <button class="tab active" data-mode="builder" onclick="switchMode('builder')">🧪 Builder</button>
     <button class="tab" data-mode="playground" onclick="switchMode('playground')">⚛️ Playground &amp; Library</button>
@@ -68,9 +83,10 @@ code{font-family:var(--mono);background:rgba(255,255,255,.08);padding:0 4px;bord
   </nav>
   <div class="ctl">
     <button class="btn pri" onclick="document.getElementById('file').click()">📂 Load JSON</button>
+    <button class="btn" onclick="$('paste').showModal()">📋 Paste JSON</button>
     <button class="btn" onclick="downloadTemplate()">⬇ Template</button>
     <button id="b-h" class="btn on" onclick="toggleH()">H atoms: ON</button>
-    <button id="b-er" class="btn" onclick="toggleEraser()">🧹 Eraser: OFF</button>
+    
     <button class="btn" onclick="untangle()">✨ Untangle</button>
     <button class="btn" onclick="resetWork()">↺ Reset</button>
     <input type="file" id="file" accept=".json,application/json" class="hidden" />
@@ -108,14 +124,16 @@ code{font-family:var(--mono);background:rgba(255,255,255,.08);padding:0 4px;bord
         <div class="pill"><b>Drag atom→atom:</b> bond (click again: 1→2→3) • <b>Shift:</b> select/move • <b>Alt+Click:</b> inspect</div>
       </div>
     </div>
+    <div class="dock">
+      <div class="row scroll"><button class="btn tl on" data-t="draw" onclick="setTool('draw')">✏️ Draw</button><button class="btn tl" data-t="select" onclick="setTool('select')">⬚ Select/Move</button><button class="btn tl" data-t="inspect" onclick="setTool('inspect')">🔍 Inspect</button><button class="btn tl" data-t="erase" onclick="setTool('erase')">🧹 Erase</button><button id="b-del" class="btn" onclick="delSelected()" disabled>🗑 Delete • <span id="sel-n">0 selected</span></button></div>
+      <div id="palette" class="row scroll"></div>
+      <div class="row"><input id="add-in" class="inp" style="flex:1;min-width:0" placeholder="Add: C, OH, CH3, c1ccccc1 …" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="done" /><button class="btn pri" onclick="addFromInput()">＋ Add</button></div>
+      <div id="tip" class="tip"></div>
+    </div>
     <div id="fb" class="fb info"><span></span><button id="b-next" class="btn pri hidden" onclick="nextTarget()">Next →</button></div>
   </section>
   <aside class="side">
-    <div class="panel">
-      <div class="ct"><span>Quick atoms</span><span id="sel-n" class="badge">0 selected</span></div>
-      <div id="palette" style="display:flex;flex-wrap:wrap;gap:5px"></div>
-      <button id="b-del" class="btn" onclick="delSelected()" disabled>🗑️ Delete selected</button>
-    </div>
+    
     <div class="panel">
       <div class="ct"><span>Element inspector</span><span class="badge">Alt + Click</span></div>
       <div style="display:flex;align-items:center;gap:10px">
@@ -132,7 +150,7 @@ code{font-family:var(--mono);background:rgba(255,255,255,.08);padding:0 4px;bord
     <div class="panel">
       <div class="ct"><span>Dataset</span><span id="ds-n" class="badge"></span></div>
       <div id="ds-desc" style="font-size:12px;color:var(--mu)"></div>
-      <div style="font-size:11.5px;color:var(--dim)">Drop a <code>.json</code> file anywhere, or use <b>Load JSON</b>. <b>Template</b> downloads the format.</div>
+      <div style="font-size:11.5px;color:var(--dim)">Load a <code>.json</code> file, drop it anywhere, or <b>Paste JSON</b>. Your set and progress are saved on this device.</div><button class="btn" onclick="resetSample()">↺ Back to sample set</button>
     </div>
     <div id="bank-card" class="panel hidden">
       <div class="ct"><span>Molecule library</span><span class="badge">Click to load</span></div>
@@ -166,7 +184,7 @@ code{font-family:var(--mono);background:rgba(255,255,255,.08);padding:0 4px;bord
 
 <section id="v-atlas" class="full hidden">
   <div class="panel" style="flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between">
-    <div><h2 style="font-size:18px;font-weight:800">🗂 Structure Atlas</h2><p style="font-size:12px;color:var(--mu)">Browse every molecule in the dataset, or open one in the 3D workbench.</p></div>
+    <div><h2 style="font-size:18px;font-weight:800">🗂 Structure Atlas</h2><p style="font-size:12px;color:var(--mu)">Browse every molecule in the dataset, or open one in the Playground.</p></div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
       <input id="atlas-q" class="inp" style="width:180px" placeholder="Search…" oninput="renderAtlas()" />
       <span id="atlas-f" style="display:flex;flex-wrap:wrap;gap:6px"></span>
@@ -175,6 +193,7 @@ code{font-family:var(--mono);background:rgba(255,255,255,.08);padding:0 4px;bord
   <div id="atlas" class="atlas"></div>
 </section>
 
+<dialog id="paste"><form method="dialog" style="display:flex;flex-direction:column;gap:10px"><b>Paste ChemLab JSON</b><textarea id="paste-t" placeholder='{"molecules":[…]}' spellcheck="false"></textarea><div class="row" style="justify-content:flex-end"><button class="btn" value="x">Cancel</button><button class="btn pri" type="button" onclick="loadPasted()">Load</button></div></form></dialog>
 <div id="err" class="fb error hidden"></div>
 <div id="drop" class="hidden">Drop JSON file to load</div>
 
@@ -416,14 +435,21 @@ const SAMPLE = {
 // ============================================================================
 let DS = null;
 const $ = id => document.getElementById(id);
-const graph = { atoms: [], bonds: [], nid: 1, bid: 1 };
-const S = { mode: 'builder', level: 'all', showH: true, eraser: false, streaks: {}, mastered: new Set(), streak: 0, qScore: 0, qTotal: 0,
+const COARSE = matchMedia('(pointer:coarse)').matches, PAD = COARSE ? 12 : 4, PADB = COARSE ? 15 : 9;
+const store = (k, v) => { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
+const fetchStore = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const vib = p => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} };
+const graph = { atoms: [], bonds: [], nid: 1, bid: 1, k: 1 };
+const S = { mode: 'builder', level: 'all', showH: true, tool: 'draw', streaks: {}, mastered: new Set(), streak: 0, qScore: 0, qTotal: 0,
   qCur: null, qOpts: [], qDone: false, atlasCat: 'ALL', target: null, solved: false, sel: new Set() };
 const I = { mouse: { x: 0, y: 0 }, bondFrom: null, moving: false, last: null, boxA: null, boxB: null, hoverA: null, hoverB: null, bubble: null };
 
-function loadDataset(json) {
+function loadDataset(json, raw) {
   DS = normalizeDataset(json);
+  if (raw !== undefined) store('chemlab.ds', raw);
+  S.key = 'chemlab.m.' + DS.title + '|' + DS.molecules.length;
   S.streaks = {}; S.mastered = new Set(); S.streak = 0; S.qScore = 0; S.qTotal = 0; S.qCur = null; S.level = 'all'; S.atlasCat = 'ALL';
+  try { const d = JSON.parse(fetchStore(S.key) || '{}'); S.streaks = d.s || {}; S.mastered = new Set(d.m || []); } catch (e) {}
   $('ds-title').textContent = DS.title; document.title = DS.title + ' — ChemLab';
   $('ds-desc').textContent = DS.description; $('ds-n').textContent = DS.molecules.length + ' molecules';
   buildLevelButtons(); buildAtlasFilters(); updateMastery();
@@ -438,7 +464,7 @@ function showError(msg) {
 
 function readFile(file) {
   const r = new FileReader();
-  r.onload = () => { try { loadDataset(JSON.parse(r.result)); $('err').classList.add('hidden'); } catch (e) { showError(`Could not load "${file.name}": ${e.message}`); } };
+  r.onload = () => { try { loadDataset(JSON.parse(r.result), r.result); $('err').classList.add('hidden'); } catch (e) { showError(`Could not load "${file.name}": ${e.message}`); } };
   r.readAsText(file);
 }
 $('file').addEventListener('change', e => { if (e.target.files[0]) readFile(e.target.files[0]); e.target.value = ''; });
@@ -446,6 +472,11 @@ window.addEventListener('dragover', e => { e.preventDefault(); $('drop').classLi
 window.addEventListener('dragleave', e => { if (!e.relatedTarget) $('drop').classList.add('hidden'); });
 window.addEventListener('drop', e => { e.preventDefault(); $('drop').classList.add('hidden'); if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); });
 
+function loadPasted() {
+  try { const t = $('paste-t').value; loadDataset(JSON.parse(t), t); $('paste').close(); $('err').classList.add('hidden'); }
+  catch (e) { showError('Could not load pasted JSON: ' + e.message); }
+}
+function resetSample() { store('chemlab.ds', null); loadDataset(SAMPLE); }
 function downloadTemplate() {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([JSON.stringify(SAMPLE, null, 2)], { type: 'application/json' }));
@@ -454,6 +485,7 @@ function downloadTemplate() {
 
 function record(id, ok) {
   if (ok) { const n = (S.streaks[id] || 0) + 1; S.streaks[id] = n; if (n >= 3) S.mastered.add(id); } else S.streaks[id] = 0;
+  store(S.key, JSON.stringify({ s: S.streaks, m: [...S.mastered] }));
   updateMastery();
 }
 function updateMastery() {
@@ -473,9 +505,9 @@ function addBond(a, b, order = 1) {
   if (ex) { ex.order = ex.order >= 3 ? 1 : ex.order + 1; return; }
   graph.bonds.push({ id: graph.bid++, a, b, order });
 }
-function placeMolecule(g, cx, cy, select = true) {
+function placeMolecule(g, cx, cy, select = true, k = 1) {
   const map = new Map(); if (select) S.sel.clear();
-  g.atoms.forEach(a => { const n = addAtom(a.sym, cx + a.x, cy + a.y); n.charge = a.charge || 0; map.set(a.id, n.id); if (select) S.sel.add(n.id); });
+  g.atoms.forEach(a => { const n = addAtom(a.sym, cx + a.x * k, cy + a.y * k); n.charge = a.charge || 0; map.set(a.id, n.id); if (select) S.sel.add(n.id); });
   g.bonds.forEach(b => graph.bonds.push({ id: graph.bid++, a: map.get(b.a), b: map.get(b.b), order: b.order }));
   updateSel();
 }
@@ -560,11 +592,11 @@ function verify() {
   const over = U.heavy.find(a => { const s = ub.reduce((x, b) => x + ((b.a === a.id || b.b === a.id) ? b.order : 0), 0); const mx = Math.max(...(VAL[a.sym] || [8])) + (a.charge || 0); return s > mx + 1e-6; });
   if (over) return fb(`A ${over.sym} atom has more bonds than its valence allows (extra H atoms or bond orders?).`, 'error');
   if (isomorphic(U, R)) {
-    S.solved = true; record(t.id, true);
+    S.solved = true; vib(35); record(t.id, true);
     const k = S.streaks[t.id] || 0;
     fb(`🎉 Correct! You built <b>${esc(t.name)}</b> (${esc(t.formula)}) — ${k >= 3 ? '🏆 <b>Mastered!</b>' : `streak <b>${k}/3</b>`} Press Enter or click Next.`, 'success');
     $('b-next').classList.remove('hidden');
-  } else { record(t.id, false); fb(`Atom counts match ${esc(t.name)}, but connectivity or bond orders (single / double / triple) differ. Streak reset.`, 'error'); }
+  } else { vib([50, 40, 50]); record(t.id, false); fb(`Atom counts match ${esc(t.name)}, but connectivity or bond orders (single / double / triple) differ. Streak reset.`, 'error'); }
 }
 
 // ============================================================================
@@ -626,7 +658,7 @@ function stepPhysics(w, h) {
   }
   graph.bonds.forEach(b => {
     const a = m.get(b.a), c = m.get(b.b); if (!a || !c) return;
-    const dx = c.x - a.x, dy = c.y - a.y, d = Math.hypot(dx, dy) || 1, f = (d - (a.sym === 'H' || c.sym === 'H' ? 38 : 50)) * .065;
+    const dx = c.x - a.x, dy = c.y - a.y, d = Math.hypot(dx, dy) || 1, f = (d - (a.sym === 'H' || c.sym === 'H' ? 38 : 50) * graph.k) * .065;
     a.vx += dx / d * f; a.vy += dy / d * f; c.vx -= dx / d * f; c.vy -= dy / d * f;
   });
   A.forEach(a => {
@@ -675,7 +707,7 @@ function loop() {
 // 8. BUILDER / PLAYGROUND / UI CONTROLLERS
 // ============================================================================
 function fb(msg, type = 'info') { const e = $('fb'); e.className = 'fb ' + type; e.querySelector('span').innerHTML = msg; }
-function clearGraph() { graph.atoms = []; graph.bonds = []; graph.nid = graph.bid = 1; S.sel.clear(); updateSel(); }
+function clearGraph() { graph.atoms = []; graph.bonds = []; graph.nid = graph.bid = 1; graph.k = 1; S.sel.clear(); updateSel(); }
 function levelLabel(l) { return DS.levels[l] || ('Level ' + l); }
 function levels() { return [...new Set(DS.molecules.map(m => m.level))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })); }
 function buildLevelButtons() {
@@ -702,7 +734,12 @@ function updateBanner() {
 }
 function toggleHint() { const b = $('hint'); b.textContent = '💡 ' + (S.target.hint || `Formula ${S.target.formula} — ${S.target.category}`); b.classList.toggle('hidden'); }
 function toggleH() { S.showH = !S.showH; $('b-h').textContent = 'H atoms: ' + (S.showH ? 'ON' : 'OFF'); $('b-h').classList.toggle('on', S.showH); if (S.mode === 'quiz') paintQuiz(); if (S.mode === 'atlas') renderAtlas(); }
-function toggleEraser() { S.eraser = !S.eraser; $('b-er').textContent = '🧹 Eraser: ' + (S.eraser ? 'ON' : 'OFF'); $('b-er').classList.toggle('danger', S.eraser); }
+function setTool(t) {
+  S.tool = t; if (t !== 'select') { S.sel.clear(); updateSel(); }
+  document.querySelectorAll('.tl').forEach(b => { b.classList.toggle('on', b.dataset.t === t); b.classList.toggle('danger', t === 'erase' && b.dataset.t === 'erase'); });
+  $('tip').textContent = { draw: 'Tap empty space to mark a spot, then tap an atom button or type below. Drag atom → atom to bond; tap a bond to lower its order.', select: 'Tap atoms to select, drag to move them; drag on empty space to box-select.', inspect: 'Tap an atom to see its element details.', erase: 'Tap an atom or bond to delete it.' }[t];
+}
+function toggleEraser() { setTool(S.tool === 'erase' ? 'draw' : 'erase'); }
 function untangle() { graph.atoms.forEach(a => { a.vx += (Math.random() - .5) * 14; a.vy += (Math.random() - .5) * 14; }); }
 function resetWork() {
   I.bubble = null;
@@ -729,7 +766,8 @@ const matches = (m, q) => !q || [m.name, m.abbr, m.formula, m.category, m.id, ..
 function loadMol(id, silent) {
   const m = DS.molecules.find(x => x.id === id); if (!m) return;
   if (S.mode !== 'playground') { S.mode = 'playground'; switchMode('playground'); }
-  clearGraph(); const cv = $('cv'); placeMolecule(m, (cv.clientWidth || 720) / 2, (cv.clientHeight || 540) / 2, false);
+  clearGraph(); const cv = $('cv'); const xs = m.atoms.map(a => a.x), ys = m.atoms.map(a => a.y), k = Math.min(1, (cv.clientWidth || 720) / (Math.max(...xs) - Math.min(...xs) + 90), (cv.clientHeight || 540) / (Math.max(...ys) - Math.min(...ys) + 90));
+  graph.k = k; placeMolecule(m, (cv.clientWidth || 720) / 2, (cv.clientHeight || 540) / 2, false, k);
   if (!silent) fb(`Loaded <b>${esc(m.name)}</b> (${esc(m.formula)}) — ${esc(m.category)}.`, 'info');
 }
 function inspect(sym) {
@@ -746,7 +784,7 @@ function nextQuiz() {
   const t = DS.molecules[Math.floor(Math.random() * DS.molecules.length)];
   S.qCur = t; S.qDone = false;
   S.qOpts = shuffle([t, ...shuffle(DS.molecules.filter(m => m !== t)).slice(0, 3)]);
-  $('q-hint').classList.add('hidden'); $('q-fb').classList.add('hidden'); $('q-text').value = ''; $('q-text').focus();
+  $('q-hint').classList.add('hidden'); $('q-fb').classList.add('hidden'); $('q-text').value = ''; if (!COARSE) $('q-text').focus();
   $('q-opts').innerHTML = S.qOpts.map((o, i) => `<button class="btn" style="padding:11px 14px;justify-content:space-between;font-size:13.5px" onclick="answerQuiz('${esc(o.id)}')"><span><b>[${i + 1}]</b> ${esc(o.name)}</span><span style="font-family:var(--mono);color:var(--am)">${esc(o.abbr)}</span></button>`).join('');
   requestAnimationFrame(paintQuiz);
 }
@@ -783,7 +821,7 @@ function renderAtlas() {
       <canvas id="ac-${i}" class="mini"></canvas>
       <div style="font-size:11.5px;color:var(--mu);flex:1">${esc(m.hint)}</div>
       <div class="facts">${Object.entries(m.facts).map(([k, v]) => `<span class="fact">${esc(k)}: ${esc(v)}</span>`).join('')}</div>
-      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-family:var(--mono);font-size:11px;color:var(--dim)">${esc(m.formula)}</span><button class="btn" onclick="loadMol('${esc(m.id)}')">Open in 3D Lab →</button></div>
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-family:var(--mono);font-size:11px;color:var(--dim)">${esc(m.formula)}</span><button class="btn" onclick="loadMol('${esc(m.id)}')">Open in Playground →</button></div>
     </article>`;
   }).join('') || '<div style="color:var(--dim)">No molecules match.</div>';
   requestAnimationFrame(() => list.forEach((m, i) => paintStatic($('ac-' + i), m)));
@@ -797,7 +835,7 @@ function initCanvas() {
   const pos = e => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
   const atomAt = (x, y) => {
     const { hid, hc } = view(graph.atoms, graph.bonds, S.showH);
-    for (let i = graph.atoms.length - 1; i >= 0; i--) { const a = graph.atoms[i]; if (!hid.has(a.id) && Math.hypot(a.x - x, a.y - y) <= radius(a, hc.get(a.id) || 0) + 4) return a; }
+    for (let i = graph.atoms.length - 1; i >= 0; i--) { const a = graph.atoms[i]; if (!hid.has(a.id) && Math.hypot(a.x - x, a.y - y) <= radius(a, hc.get(a.id) || 0) + PAD) return a; }
     return null;
   };
   const bondAt = (x, y) => {
@@ -805,7 +843,7 @@ function initCanvas() {
     for (const b of graph.bonds) {
       if (hid.has(b.a) || hid.has(b.b)) continue; const A = m.get(b.a), B = m.get(b.b); if (!A || !B) continue;
       const dx = B.x - A.x, dy = B.y - A.y, t = Math.max(.15, Math.min(.85, ((x - A.x) * dx + (y - A.y) * dy) / (dx * dx + dy * dy || 1)));
-      if (Math.hypot(x - A.x - t * dx, y - A.y - t * dy) <= 9) return b;
+      if (Math.hypot(x - A.x - t * dx, y - A.y - t * dy) <= PADB) return b;
     }
     return null;
   };
@@ -816,9 +854,9 @@ function initCanvas() {
     const p = pos(e); I.mouse = p;
     if (I.bubble) { if (I.bubble.text.trim()) spawn(I.bubble.text, I.bubble.x, I.bubble.y); I.bubble = null; }
     const a = atomAt(p.x, p.y);
-    if (e.altKey && a) return inspect(a.sym);
-    if (S.eraser) { if (a) delAtoms([a.id]); else { const b = bondAt(p.x, p.y); if (b) delBond(b); } return; }
-    if (e.shiftKey) {
+    if (e.altKey || S.tool === 'inspect') { if (a) inspect(a.sym); return; }
+    if (S.tool === 'erase') { if (a) delAtoms([a.id]); else { const b = bondAt(p.x, p.y); if (b) delBond(b); } return; }
+    if (e.shiftKey || S.tool === 'select') {
       if (a) { S.sel.has(a.id) ? S.sel.delete(a.id) : S.sel.add(a.id); updateSel(); I.moving = true; I.last = p; } else { I.boxA = p; I.boxB = p; }
       return;
     }
@@ -843,6 +881,7 @@ function initCanvas() {
     }
     if (I.bondFrom !== null) { const t = atomAt(p.x, p.y); if (t && t.id !== I.bondFrom) addBond(I.bondFrom, t.id); I.bondFrom = null; }
   });
+  cv.addEventListener('pointercancel', () => { I.moving = false; I.last = null; I.boxA = I.boxB = null; I.bondFrom = null; });
   window.addEventListener('keydown', e => {
     if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
     if (I.bubble) {
@@ -858,15 +897,23 @@ function initCanvas() {
   });
   $('palette').innerHTML = ['C', 'H', 'O', 'N', 'S', 'P', 'F', 'Cl', 'Br', 'I'].map(s => `<button class="btn" style="padding:5px 9px" onclick="quickAtom('${s}')">${s}</button>`).join('');
 }
-function quickAtom(s) { const cv = $('cv'); spawn(s, (cv.clientWidth || 720) / 2 + (Math.random() - .5) * 160, (cv.clientHeight || 540) / 2 + (Math.random() - .5) * 120); }
+function dropPoint() { const cv = $('cv'), p = I.bubble ? { x: I.bubble.x, y: I.bubble.y } : { x: (cv.clientWidth || 720) / 2 + (Math.random() - .5) * 160, y: (cv.clientHeight || 540) / 2 + (Math.random() - .5) * 120 }; I.bubble = null; return p; }
+function quickAtom(s) { const p = dropPoint(); spawn(s, p.x, p.y); }
+function addFromInput() { const i = $('add-in'), t = i.value.trim(); if (!t) return; const p = dropPoint(); spawn(t, p.x, p.y); i.value = ''; }
+$('add-in').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addFromInput(); } });
 
 // ============================================================================
 // 11. INIT
 // ============================================================================
 window.addEventListener('DOMContentLoaded', () => {
-  initCanvas();
-  loadDataset(SAMPLE);
+  initCanvas(); setTool('draw');
+  const q = new URLSearchParams(location.search).get('set'), saved = fetchStore('chemlab.ds');
+  const boot = () => { try { if (saved) return loadDataset(JSON.parse(saved)); } catch (e) {} loadDataset(SAMPLE); };
+  if (q) fetch(q).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(j => loadDataset(j)).catch(e => { boot(); showError(`Could not load "${q}": ${e.message}`); });
+  else boot();
   requestAnimationFrame(loop);
+  window.addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(() => { if (S.mode === 'quiz') paintQuiz(); else if (S.mode === 'atlas') renderAtlas(); }, 150); });
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 });
 </script>
 </body>
